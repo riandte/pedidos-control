@@ -1,0 +1,114 @@
+# Capacidades Atuais do Frontend
+Data: 23/12/2025  
+Versão Analisada: Implementação Atual (React + Vite)
+
+## 1. Visão Geral
+O sistema frontend é uma aplicação React (Vite) monolítica, dividida logicamente em três módulos de acesso:
+1.  **Cliente**: Interface pública para autoatendimento.
+2.  **Admin**: Painel de gestão para a empresa.
+3.  **KDS (Kitchen Display System)**: Monitor passivo para a cozinha.
+
+## 2. Frontend do Cliente — Capacidades
+
+| Funcionalidade | Status | Detalhes Técnicos |
+| :--- | :--- | :--- |
+| **Visualização de Menu** | [OK] Implementado | Consome API /menu. Lista categorias e itens. |
+| **Detalhes do Produto** | [OK] Implementado | Página dedicada /produto/:id. Seleção de modificadores via Rádio. Imagem com fallback. |
+| **Carrinho de Compras** | [OK] Implementado | Estado global (CartContext). Persistência via localStorage. Cálculo de totais. |
+| **Checkout (Pagamento)** | [!] Parcial | Simula fluxo PIX com delay (Mock). Não processa pagamento real. Cria pedido na API. |
+| **Acompanhamento** | [X] Inexistente | Após fechar o pedido, o cliente perde o rastro (não há tela "Meus Pedidos"). |
+
+## 3. Frontend da Empresa (Admin + KDS)
+
+| Funcionalidade | Status | Detalhes Técnicos |
+| :--- | :--- | :--- |
+| **Autenticação** | [!] Frágil | Login aceita qualquer token não-vazio. Salva em localStorage. Sem validação backend real no login. |
+| **Gestão de Pedidos** | [OK] Implementado | Lista pedidos (Polling 10s). Filtra por status. Permite avançar status (API Patch). |
+| **Gestão de Estoque** | [!] Parcial | Visualiza lista e alerta de nível baixo. **Não permite editar** quantidades ou valores. |
+| **KDS (Cozinha)** | [OK] Implementado | Tela fullscreen. Polling automático. Botão para marcar como "PRONTO". |
+
+## 4. Fluxos Completos Suportados ([OK] = Ponta a Ponta)
+
+1.  [OK] Cliente escolhe item -> Configura opcionais -> Paga (Simulado) -> Pedido criado.
+2.  [OK] Pedido aparece no Admin e KDS automaticamente (dentro de 10s).
+3.  [OK] Cozinha marca como Pronto -> Admin vê status atualizado.
+4.  [OK] Admin finaliza ou cancela pedido.
+
+## 5. Limitações Atuais Conhecidas
+
+*   **Segurança**: O Login do Admin é puramente visual (front-side check); qualquer um com a URL pode tentar acessar se souber o token mock.
+*   **Dados**: Não é possível corrigir estoque errado pelo sistema (apenas via banco de dados direto).
+*   **Persistência Cliente**: Se o cliente limpar o cache, perde o carrinho e não recupera histórico de pedidos anteriores.
+
+***
+
+# Diagnóstico Técnico
+
+### O que está Sólido (Keep it)
+*   **Arquitetura de Rotas**: A separação /, /admin, /kds com react-router-dom v7 está correta e escalável.
+*   **Gerenciamento de Estado**: O CartContext resolve bem o problema do carrinho sem complexidade desnecessária.
+*   **Fluxo de Compra**: A UX de seleção de produto e checkout é funcional e intuitiva.
+
+### O que está Frágil (Needs Fix)
+*   **Camada de API/Admin**: O AdminPedidos e KDS dependem de polling (requisições a cada 10s).
+*   **Login**: A implementação atual do Login.tsx é um placeholder.
+*   **Estoque**: A tela AdminEstoque é "read-only", o que a torna inútil para a operação diária de ajuste.
+
+### O que Não Existe (Missing)
+*   **Edição de Cardápio**: Não há como criar/editar produtos ou categorias pelo Admin.
+*   **Meus Pedidos**: O cliente não sabe se o pedido saiu para entrega (falta feedback).
+
+***
+
+# Lista Priorizada de Melhorias
+
+### 1. Frontend da Empresa (Admin) - PRIORIDADE MÁXIMA
+1.  **Edição de Estoque**: Transformar a tabela de leitura em tabela editável (Input para quantidade atual).
+2.  **Autenticação Real**: Conectar o formulário de login ao endpoint /auth (se existir) ou criar validação real.
+3.  **Som de Alerta**: Adicionar aviso sonoro no Admin/KDS quando chegar novo pedido.
+
+### 2. Frontend do Cliente
+1.  **Tela "Status do Pedido"**: Após o checkout, redirecionar para /pedido/:id/status que faz polling do status do pedido.
+2.  **Validação de Telefone**: Melhorar o input de telefone no checkout (máscara e validação básica).
+
+### 3. KDS
+1.  **Filtro de Visualização**: Permitir ver apenas "Pendentes" ou "Em Preparo".
+
+***
+
+# Proposta de Refatoração do Frontend da Empresa
+
+**Objetivo**: Organizar o Admin para suportar operações diárias sem misturar responsabilidades.
+
+### Estrutura Ideal de Páginas (/src/pages/admin/)
+
+| Página | Rota | Responsabilidade |
+| :--- | :--- | :--- |
+| **Dashboard (Home)** | /admin | Visão macro imediata (pedidos hoje, faturamento simples). |
+| **Operação de Pedidos** | /admin/pedidos | Fluxo de caixa/balcão (Listar, Mudar Status, Imprimir, Cancelar). |
+| **Controle de Estoque** | /admin/estoque | Gestão de insumos (Editar quantidade, Editar preço, Ver alerta). |
+| **Gestão de Cardápio** | /admin/cardapio | Gestão de produtos (Ativar/Desativar produto, Editar Preço). |
+
+### Mudança Técnica Sugerida
+Criar um `AdminContext` ou hook `useAdminData` para centralizar o polling.
+
+***
+
+# Roadmap Técnico (Sugestão)
+
+### Fase 1: Operação Básica (Semana 1)
+*   Foco: Tornar o sistema usável para um dia real de trabalho.
+*   [ ] Implementar PUT /admin/estoque no front (tela AdminEstoque).
+*   [ ] Implementar Login real (POST /login recebendo JWT).
+*   [ ] Adicionar aviso sonoro em novos pedidos.
+
+### Fase 2: Experiência do Cliente (Semana 2)
+*   Foco: Reduzir ansiedade do cliente.
+*   [ ] Criar página /pedido/:id pública.
+*   [ ] Redirecionar cliente para essa página após checkout.
+*   [ ] Salvar histórico de IDs de pedidos no localStorage do cliente.
+
+### Fase 3: Gestão & Expansão (Semana 3+)
+*   Foco: Facilitar a vida do dono.
+*   [ ] Criar tela de Cardápio (CRUD simples).
+*   [ ] Melhorar KDS com agrupamento por produto.

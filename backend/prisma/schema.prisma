@@ -1,0 +1,197 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------
+// USERS & AUTH
+// ------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String?  @unique // Login via email or cpf
+  cpf       String?  @unique
+  senha     String
+  tipo      String   @default("CLIENTE") // Role: ADMIN, CLIENTE
+  endereco  String?
+  telefone  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  pedidos Pedido[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------
+// CONFIGURAÇÕES (LOJA)
+// ------------------------------------------------------
+
+model Configuracao {
+  id          String   @id @default("default") // Chave fixa para facilitar singleton
+  nomeLoja    String   @default("Minha Loja") @map("nome_loja")
+  endereco    String   @default("")
+  horario     String   @default("08:00 às 18:00")
+  mensagem    String?
+  aberto      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracoes")
+}
+
+// ------------------------------------------------------
+// CATÁLOGO
+// ------------------------------------------------------
+
+model Categoria {
+  id        String   @id @default(uuid())
+  nome      String
+  descricao String?
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  produtos Produto[]
+
+  @@map("categorias")
+}
+
+model Produto { // Antigo Item
+  id                String   @id @default(uuid())
+  categoriaId       String   @map("categoria_id")
+  nome              String
+  descricao         String?
+  precoBase         Decimal  @map("preco_base")
+  tempoPreparoMin   Int?     @map("tempo_preparo_min")
+  imagemUrl         String?  @map("imagem_url")
+  ativo             Boolean  @default(true)
+  permiteAdicionais Boolean  @default(false) @map("permite_adicionais")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  categoria        Categoria            @relation(fields: [categoriaId], references: [id])
+  gruposAdicionais GrupoAdicional[]     @relation("ProdutoGrupos") // M:N
+  ingredientes     ProdutoIngrediente[] // Ficha técnica (apenas organização)
+  pedidoItens      PedidoItem[]
+
+  @@map("produtos")
+}
+
+// ------------------------------------------------------
+// INGREDIENTES & ADICIONAIS
+// ------------------------------------------------------
+
+model Ingrediente { // Entidade independente
+  id        String   @id @default(uuid())
+  nome      String
+  ativo     Boolean  @default(true) // Added
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  produtos   ProdutoIngrediente[]
+  adicionais Adicional[] // Adicional pode referenciar um ingrediente
+
+  @@map("ingredientes")
+}
+
+model ProdutoIngrediente {
+  produtoId     String @map("produto_id")
+  ingredienteId String @map("ingrediente_id")
+
+  produto     Produto     @relation(fields: [produtoId], references: [id])
+  ingrediente Ingrediente @relation(fields: [ingredienteId], references: [id])
+
+  @@id([produtoId, ingredienteId])
+  @@map("produto_ingredientes")
+}
+
+model GrupoAdicional { // Ex: "Bordas", "Molhos"
+  id          String  @id @default(uuid())
+  nome        String
+  minEscolhas Int     @default(0) @map("min_escolhas")
+  maxEscolhas Int     @default(1) @map("max_escolhas")
+  // produtoId Removed to allow M:N
+  
+  produtos    Produto[] @relation("ProdutoGrupos") // M:N
+  adicionais  Adicional[]
+
+  @@map("grupos_adicionais")
+}
+
+model Adicional {
+  id               String  @id @default(uuid())
+  nome             String
+  preco            Decimal
+  grupoId          String  @map("grupo_id")
+  ingredienteRefId String? @map("ingrediente_ref_id") // Referência conceitual
+
+  grupo       GrupoAdicional @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  ingrediente Ingrediente?   @relation(fields: [ingredienteRefId], references: [id])
+  
+  pedidoItemAdicionais PedidoItemAdicional[]
+
+  @@map("adicionais")
+}
+
+// ------------------------------------------------------
+// PEDIDOS
+// ------------------------------------------------------
+
+model Pedido {
+  id             String          @id @default(uuid())
+  numero         Int             // @default(autoincrement()) removed for SQLite compatibility
+  userId         String?         @map("user_id") // Cliente logado
+  nomeCliente    String          @map("nome_cliente") // Snapshot do nome
+  telefone       String?         // Telefone para contato
+  status         String          @default("RECEBIDO") // Enum handled as string
+  tipoEntrega    String          @default("RETIRADA")
+  statusPagamento String         @default("PENDENTE")
+  total          Decimal
+  observacao     String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  user  User?        @relation(fields: [userId], references: [id])
+  itens PedidoItem[]
+
+  @@map("pedidos")
+}
+
+model PedidoItem {
+  id             String  @id @default(uuid())
+  pedidoId       String  @map("pedido_id")
+  produtoId      String? @map("produto_id") // Opcional se produto for deletado (mas ideal manter)
+  nomeProduto    String  @map("nome_produto") // Snapshot
+  quantidade     Int
+  precoUnitario  Decimal @map("preco_unitario")
+  totalItem      Decimal @map("total_item")
+  observacao     String?
+
+  pedido     Pedido                @relation(fields: [pedidoId], references: [id])
+  produto    Produto?              @relation(fields: [produtoId], references: [id])
+  adicionais PedidoItemAdicional[]
+
+  @@map("pedido_itens")
+}
+
+model PedidoItemAdicional {
+  id             String @id @default(uuid())
+  pedidoItemId   String @map("pedido_item_id")
+  adicionalId    String? @map("adicional_id")
+  nomeAdicional  String @map("nome_adicional") // Snapshot
+  precoAdicional Decimal @map("preco_adicional")
+
+  pedidoItem PedidoItem @relation(fields: [pedidoItemId], references: [id])
+  adicional  Adicional? @relation(fields: [adicionalId], references: [id])
+
+  @@map("pedido_item_adicionais")
+}
