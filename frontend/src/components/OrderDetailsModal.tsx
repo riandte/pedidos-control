@@ -85,7 +85,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ pedido, on
 
           <div style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1rem', color: '#666', marginBottom: '0.5rem' }}>Itens</h3>
-            {pedido.itens.map((item) => (
+            {(pedido.itens || []).map((item) => (
               <div key={item.id} style={{ marginBottom: '1rem', borderBottom: '1px solid #f0f0f0', paddingBottom: '0.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontWeight: 'bold' }}>{item.quantidade}x {item.nomeProduto}</span>

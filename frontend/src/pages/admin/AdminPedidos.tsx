@@ -44,7 +44,12 @@ export function AdminPedidos() {
     // setLoading(true); 
     try {
       const res = await api.get('/admin/pedidos');
-      setPedidos(res.data);
+      if (Array.isArray(res.data)) {
+        setPedidos(res.data);
+      } else {
+        console.error('Resposta inválida da API de pedidos:', res.data);
+        setPedidos([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {

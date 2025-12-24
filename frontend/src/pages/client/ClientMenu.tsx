@@ -33,11 +33,11 @@ export function ClientMenu() {
           api.get('/produtos'),
           api.get('/configuracoes')
         ]);
-        setCategorias(catRes.data);
-        setProdutos(prodRes.data);
-        setConfig(configRes.data);
+        setCategorias(Array.isArray(catRes.data) ? catRes.data : []);
+        setProdutos(Array.isArray(prodRes.data) ? prodRes.data : []);
+        setConfig(configRes.data || null);
       } catch (err) {
-        console.error(err);
+        console.error('Erro ao carregar dados:', err);
       }
     };
     fetchData();
