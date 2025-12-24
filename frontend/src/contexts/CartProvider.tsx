@@ -4,9 +4,14 @@ import { CartContext } from './CartContextType';
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<ItemCarrinho[]>(() => {
-    const stored = localStorage.getItem('@PedidosControl:cart');
-    if (stored) {
-      return JSON.parse(stored);
+    try {
+      const stored = localStorage.getItem('@PedidosControl:cart');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar carrinho:', error);
+      localStorage.removeItem('@PedidosControl:cart');
     }
     return [];
   });
