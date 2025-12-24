@@ -11,6 +11,7 @@ import { IngredienteController } from '../controllers/IngredienteController';
 import { GrupoAdicionalController } from '../controllers/GrupoAdicionalController';
 import { ConfiguracaoController } from '../controllers/ConfiguracaoController';
 import { SetupController } from '../controllers/SetupController';
+import { MigrateController } from '../controllers/MigrateController';
 import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth';
 
 const router = Router();
@@ -27,6 +28,7 @@ const ingredienteController = new IngredienteController();
 const grupoAdicionalController = new GrupoAdicionalController();
 const configuracaoController = new ConfiguracaoController();
 const setupController = new SetupController();
+const migrateController = new MigrateController();
 
 // Auth
 router.post('/auth/register', authController.register);
@@ -34,6 +36,8 @@ router.post('/auth/login', authController.login);
 
 // Setup (Executar Seed em Produção)
 router.get('/setup', setupController.run);
+// Migração de Emergência
+router.get('/migrate', migrateController.run);
 
 // Configurações (Público + Admin)
 router.get('/configuracoes', configuracaoController.show);
