@@ -10,6 +10,7 @@ import { PagamentoController } from '../controllers/PagamentoController';
 import { IngredienteController } from '../controllers/IngredienteController';
 import { GrupoAdicionalController } from '../controllers/GrupoAdicionalController';
 import { ConfiguracaoController } from '../controllers/ConfiguracaoController';
+import { SetupController } from '../controllers/SetupController';
 import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth';
 
 const router = Router();
@@ -25,10 +26,14 @@ const pagamentoController = new PagamentoController();
 const ingredienteController = new IngredienteController();
 const grupoAdicionalController = new GrupoAdicionalController();
 const configuracaoController = new ConfiguracaoController();
+const setupController = new SetupController();
 
 // Auth
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
+
+// Setup (Executar Seed em Produção)
+router.get('/setup', setupController.run);
 
 // Configurações (Público + Admin)
 router.get('/configuracoes', configuracaoController.show);
