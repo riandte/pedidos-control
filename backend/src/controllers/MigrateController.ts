@@ -189,6 +189,15 @@ export class MigrateController {
           CONSTRAINT "pedidos_pkey" PRIMARY KEY ("id")
         );
       `);
+
+      // EVOLUTION: Adicionar colunas que podem faltar em tabelas antigas
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "pedidos" ADD COLUMN IF NOT EXISTS "user_id" TEXT;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "pedidos" ADD COLUMN IF NOT EXISTS "telefone" TEXT;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "pedidos" ADD COLUMN IF NOT EXISTS "nome_cliente" TEXT;`); // Caso antigo não tenha
+        await prisma.$executeRawUnsafe(`ALTER TABLE "pedidos" ALTER COLUMN "nome_cliente" SET DEFAULT 'Cliente';`); // Fallback
+      } catch (e) { console.log('Erro ao alterar colunas pedidos (pode já existir):', e); }
+
       try {
         await prisma.$executeRawUnsafe(`
           ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -14,26 +14,7 @@ const app = express();
 // Middlewares Globais
 app.use(helmet()); // Segurança
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      process.env.CORS_ORIGIN,
-      'https://pedidoscontrol.vercel.app',
-      'http://localhost:5173',
-      'http://localhost:3000'
-    ];
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (process.env.CORS_ORIGIN === '*' || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      // Opcional: Permitir temporariamente tudo para debug se necessário, mas melhor restringir
-      // callback(new Error('Not allowed by CORS'));
-      // Para evitar bloqueio excessivo durante testes, vamos logar e permitir (cuidado em prod)
-      console.log('Origin not explicitly allowed:', origin);
-      return callback(null, true); 
-    }
-  },
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true
 })); // CORS
 app.use(express.json()); // Parse JSON
