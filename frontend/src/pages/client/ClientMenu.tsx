@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
-import { Categoria, Produto } from '../../types';
+import { Categoria, Produto, Config } from '../../types';
 import { useCart } from '../../contexts/useCart';
 import { Home, Receipt, ShoppingCart, Clock, MapPin, AlertCircle } from 'lucide-react';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Loading } from '../../components/Loading';
+import { apiCache } from '../../utils/apiCache';
 import '../../App.css';
-
-interface Config {
-  nomeLoja: string;
-  endereco: string;
-  horario: string;
-  mensagem: string;
-  aberto: boolean;
-}
 
 export function ClientMenu() {
   const navigate = useNavigate();
@@ -22,26 +16,61 @@ export function ClientMenu() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'cart'>('home');
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
+      // 1. Tentar carregar do cache primeiro (instantâneo)
+      const cachedCategorias = apiCache.get<Categoria[]>('categorias');
+      const cachedProdutos = apiCache.get<Produto[]>('produtos');
+      const cachedConfig = apiCache.get<Config>('configuracoes');
+
+      if (cachedCategorias && cachedProdutos && cachedConfig) {
+        setCategorias(cachedCategorias);
+        setProdutos(cachedProdutos);
+        setConfig(cachedConfig);
+        setLoading(false); // Já temos dados, não precisa bloquear a tela
+      }
+
+      // 2. Buscar dados frescos da API (background revalidation)
       try {
         const [catRes, prodRes, configRes] = await Promise.all([
           api.get('/categorias'),
           api.get('/produtos'),
           api.get('/configuracoes')
         ]);
-        setCategorias(Array.isArray(catRes.data) ? catRes.data : []);
-        setProdutos(Array.isArray(prodRes.data) ? prodRes.data : []);
-        setConfig(configRes.data || null);
+
+        const newCategorias = Array.isArray(catRes.data) ? catRes.data : [];
+        const newProdutos = Array.isArray(prodRes.data) ? prodRes.data : [];
+        const newConfig = configRes.data || null;
+
+        // Atualizar estado
+        setCategorias(newCategorias);
+        setProdutos(newProdutos);
+        setConfig(newConfig);
+
+        // Atualizar cache
+        apiCache.set('categorias', newCategorias);
+        apiCache.set('produtos', newProdutos);
+        apiCache.set('configuracoes', newConfig);
+
       } catch (err) {
-        console.error('Erro ao carregar dados:', err);
+        console.error('Erro ao atualizar dados:', err);
+        // Se falhar e não tivermos cache, continuamos com loading=false mas dados vazios
+        // Se tivermos cache, o usuário continua vendo a versão antiga (melhor que erro)
+      } finally {
+        setLoading(false);
       }
     };
-    fetchData();
+
+    loadData();
   }, []);
+
+  if (loading) {
+    return <Loading fullScreen message="Carregando nosso cardápio..." />;
+  }
 
   // Helper for images
   const getImage = (produto: Produto) => {

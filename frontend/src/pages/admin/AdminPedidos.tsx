@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, CSSProperties } from 'react';
 import { api } from '../../services/api';
 import { OrderCard } from '../../components/OrderCard';
 import { OrderDetailsModal } from '../../components/OrderDetailsModal';
+import { Loading } from '../../components/Loading';
 
 interface PedidoAdmin {
   id: string;
@@ -127,6 +128,10 @@ export function AdminPedidos() {
   };
 
   const grouped = groupByStatus(pedidos);
+
+  if (loading && pedidos.length === 0) {
+    return <Loading fullScreen message="Buscando pedidos..." />;
+  }
 
   return (
     <div style={{ height: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>

@@ -56,6 +56,14 @@ export interface ItemCarrinho {
 }
 
 // For API responses if needed
+export interface Config {
+  nomeLoja: string;
+  endereco: string;
+  horario: string;
+  mensagem: string;
+  aberto: boolean;
+}
+
 export interface ResultadoCalculo {
   total: number;
   subtotal: number;
