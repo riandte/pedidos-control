@@ -31,7 +31,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
   
   // Polling para verificar status do pagamento
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
 
     if (step === 'PAYMENT' && pedidoId && pixData) {
       interval = setInterval(async () => {
