@@ -31,7 +31,8 @@ export class PedidoController {
         nomeCliente,
         telefone,
         tipoEntrega, 
-        itens 
+        itens,
+        status: 'AGUARDANDO_PAGAMENTO' // Define status inicial
       });
       res.status(201).json(pedido);
     } catch (error: any) {

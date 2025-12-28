@@ -57,7 +57,7 @@ export class PaymentController {
                     where: { id: pedidoId },
                     data: { 
                         statusPagamento: 'APROVADO',
-                        // Optionally update status to 'PREPARANDO' if it was waiting for payment
+                        status: 'RECEBIDO' // Move para a cozinha (KDS)
                     }
                 });
                 console.log(`Pagamento aprovado para pedido ${pedidoId}`);

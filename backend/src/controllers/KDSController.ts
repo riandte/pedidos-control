@@ -5,10 +5,19 @@ export class KDSController {
   private service = new KDSService();
 
   index = async (req: Request, res: Response) => {
+    // Só busca pedidos com pagamento APROVADO ou que não sejam Pix (ex: dinheiro na entrega se houver)
+    // Mas para o fluxo Pix, deve ser statusPagamento='APROVADO'
+    // E status do pedido diferente de 'FINALIZADO', 'CANCELADO', 'AGUARDANDO_PAGAMENTO'
     const fila = await this.service.getFila();
     
+    // Filtra na memória ou ajusta no Service (melhor no Service, mas aqui é rápido)
+    const filaFiltrada = fila.filter(p => 
+      p.status !== 'AGUARDANDO_PAGAMENTO' && 
+      p.statusPagamento === 'APROVADO'
+    );
+    
     // Mapeamento para garantir formato limpo para tela (Frontend Friendly)
-    const filaFormatada = fila.map(p => ({
+    const filaFormatada = filaFiltrada.map(p => ({
       id: p.id,
       ticket: p.numero, // Identificador curto visual
       cliente: p.nomeCliente,

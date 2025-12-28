@@ -7,6 +7,7 @@ interface CreatePedidoDTO {
   telefone?: string;
   tipoEntrega: string;
   itens: ItemCarrinhoDTO[];
+  status?: string; // Permitir override do status inicial
 }
 
 export class PedidoService {
