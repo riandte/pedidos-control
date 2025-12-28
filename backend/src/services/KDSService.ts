@@ -14,6 +14,8 @@ export class KDSService {
         nomeCliente: true,
         createdAt: true,
         numero: true, // Se tiver número do pedido (autoincrement ou similar)
+        status: true,
+        statusPagamento: true,
         itens: {
           select: {
             id: true,
