@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createPixPayment, getPaymentStatus } from '../services/PaymentService';
+import { createPixPayment, getPaymentStatus, checkPaymentByOrder } from '../services/PaymentService';
 import prisma from '../config/database';
 
 export class PaymentController {

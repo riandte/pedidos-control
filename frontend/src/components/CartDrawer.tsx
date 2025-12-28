@@ -28,6 +28,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
   const [tipoEntrega, setTipoEntrega] = useState<'RETIRADA' | 'ENTREGA' | 'MESA'>('RETIRADA');
   const [pedidoId, setPedidoId] = useState('');
   const [pixData, setPixData] = useState<PixData | null>(null);
+  const [verificando, setVerificando] = useState(false);
   
   // Polling para verificar status do pagamento
   useEffect(() => {

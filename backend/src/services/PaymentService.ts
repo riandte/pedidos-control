@@ -46,3 +46,25 @@ export const getPaymentStatus = async (paymentId: string) => {
         throw error;
     }
 };
+
+export const checkPaymentByOrder = async (orderId: string) => {
+  const payment = new Payment(client);
+  try {
+    const result = await payment.search({
+      options: {
+        external_reference: orderId,
+        limit: 1,
+        sort: 'date_created',
+        criteria: 'desc'
+      }
+    });
+    
+    if (result.results && result.results.length > 0) {
+        return result.results[0];
+    }
+    return null;
+  } catch (error) {
+    console.error('Erro ao buscar pagamento por referência:', error);
+    return null;
+  }
+};
