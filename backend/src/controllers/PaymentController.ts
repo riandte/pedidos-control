@@ -29,8 +29,13 @@ export class PaymentController {
 
       res.status(201).json(paymentData);
     } catch (error: any) {
-        console.error(error);
-        res.status(500).json({ message: 'Erro ao gerar Pix' });
+        console.error('Erro detalhado ao gerar Pix:', error);
+        // Tenta extrair mensagem de erro da API do Mercado Pago se existir
+        const mpError = error.cause?.message || error.message || 'Erro desconhecido';
+        res.status(500).json({ 
+            message: 'Erro ao gerar Pix',
+            detail: mpError
+        });
     }
   };
 
