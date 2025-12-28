@@ -54,6 +54,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     };
   }, [step, pedidoId, pixData, onClose]);
 
+  const handleVerificarPagamento = async () => {
+    if (!pedidoId) return;
+    setVerificando(true);
+    try {
+        const res = await api.get(`/payment/${pedidoId}/status`);
+        if (res.data.statusPagamento === 'APROVADO') {
+            alert('Pagamento Confirmado! Seu pedido foi enviado para a cozinha. 🍔');
+            onClose();
+        } else {
+            alert('Pagamento ainda não confirmado. Se você já pagou, aguarde alguns segundos e tente novamente.');
+        }
+    } catch (err) {
+        console.error('Erro ao verificar status', err);
+        alert('Erro ao verificar status.');
+    } finally {
+        setVerificando(false);
+    }
+  };
+
   const getErrMessage = (err: unknown) => {
     if (typeof err === 'object' && err !== null) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
