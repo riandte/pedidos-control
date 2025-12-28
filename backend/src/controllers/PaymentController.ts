@@ -6,7 +6,9 @@ export class PaymentController {
   
   // Creates a Pix Payment for an existing Order
   createPix = async (req: Request, res: Response) => {
+    console.log('[DEBUG] PaymentController.createPix iniciado');
     const { pedidoId } = req.body;
+    console.log('[DEBUG] Payload recebido:', req.body);
 
     try {
       const pedido = await prisma.pedido.findUnique({
