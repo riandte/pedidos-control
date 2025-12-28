@@ -164,16 +164,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                         />
                       </div>
 
-                      <button 
-                        className="copy-btn" 
-                        onClick={() => {
-                            navigator.clipboard.writeText(pixData.qr_code);
-                            alert('Código copiado!');
-                        }}
-                        style={{ marginTop: '0.5rem' }}
-                      >
-                        Copiar Código
-                      </button>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
+                        <button 
+                          className="copy-btn" 
+                          onClick={() => {
+                              navigator.clipboard.writeText(pixData.qr_code);
+                              alert('Código copiado!');
+                          }}
+                          style={{ flex: 1 }}
+                        >
+                          Copiar Código
+                        </button>
+                        <button
+                            className="check-btn"
+                            onClick={handleVerificarPagamento}
+                            disabled={verificando}
+                            style={{ 
+                                flex: 1, 
+                                backgroundColor: '#10b981', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '8px', 
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                opacity: verificando ? 0.7 : 1
+                            }}
+                        >
+                            {verificando ? 'Verificando...' : 'Já Paguei'}
+                        </button>
+                      </div>
 
                       <div className="loading-spinner" style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <div style={{ 
