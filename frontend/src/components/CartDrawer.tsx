@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ItemCarrinho, ResultadoCalculo } from '../types';
 import { api } from '../services/api';
 
@@ -10,6 +10,14 @@ interface CartDrawerProps {
   storeOpen?: boolean;
 }
 
+interface PixData {
+  id: string;
+  status: string;
+  qr_code: string;
+  qr_code_base64: string;
+  ticket_url: string;
+}
+
 export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveItem, onClearCart, storeOpen = true }) => {
   const [step, setStep] = useState<'REVIEW' | 'NAME' | 'PAYMENT'>('REVIEW');
   const [simulation, setSimulation] = useState<ResultadoCalculo | null>(null);
@@ -19,9 +27,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
   const [telefoneCliente, setTelefoneCliente] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState<'RETIRADA' | 'ENTREGA' | 'MESA'>('RETIRADA');
   const [pedidoId, setPedidoId] = useState('');
-  interface PixData { pagamentoId: string; pix: { qrCodeUrl: string; copiaCola: string } }
   const [pixData, setPixData] = useState<PixData | null>(null);
   
+  // Polling para verificar status do pagamento
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (step === 'PAYMENT' && pedidoId && pixData) {
+      interval = setInterval(async () => {
+        try {
+          const res = await api.get(`/payment/${pedidoId}/status`);
+          if (res.data.statusPagamento === 'APROVADO') {
+            clearInterval(interval);
+            alert('Pagamento Confirmado! Seu pedido foi enviado para a cozinha. 🍔');
+            onClose();
+          }
+        } catch (err) {
+          console.error('Erro ao verificar status', err);
+        }
+      }, 3000); // Verifica a cada 3 segundos
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, pedidoId, pixData, onClose]);
+
   const getErrMessage = (err: unknown) => {
     if (typeof err === 'object' && err !== null) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
@@ -30,7 +61,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     return 'Erro inesperado';
   };
 
-  // 1. Simular Preço (Backend is Truth)
+  // 1. Simular Preço
   const handleSimular = async () => {
     setLoading(true);
     setError('');
@@ -46,7 +77,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     }
   };
 
-  // 2. Criar Pedido
+  // 2. Criar Pedido e Gerar Pix
   const handleCriarPedido = async () => {
     if (!nomeCliente) {
       setError('Nome é obrigatório');
@@ -58,23 +89,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     }
     setLoading(true);
     try {
-      // Create Order
+      // 1. Criar Pedido
       const res = await api.post('/pedidos', { 
         nomeCliente, 
         telefone: telefoneCliente,
         tipoEntrega,
         itens: cart 
       });
-      setPedidoId(res.data.id);
+      const novoPedidoId = res.data.id;
+      setPedidoId(novoPedidoId);
       
-      // Auto-start payment (Mock PIX)
-      const payRes = await api.post<PixData>('/pagamentos/iniciar', { 
-        pedidoId: res.data.id, 
-        metodo: 'PIX' 
+      // 2. Gerar Pix Real (Mercado Pago)
+      const payRes = await api.post<PixData>('/payment/pix', { 
+        pedidoId: novoPedidoId 
       });
+      
       setPixData(payRes.data);
       setStep('PAYMENT');
-      onClearCart(); // Clear local cart as order is created
+      onClearCart(); // Limpa carrinho local pois pedido foi criado
     } catch (err: unknown) {
       setError(getErrMessage(err) || 'Erro ao criar pedido');
     } finally {
@@ -82,69 +114,104 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     }
   };
 
-  // 3. Simular Pagamento (Webhook Mock)
-  const handleMockPagamento = async () => {
-     if (!pixData) return;
-     setLoading(true);
-     try {
-       await api.post('/pagamentos/webhook-mock', { 
-         pagamentoId: pixData.pagamentoId, 
-         pedidoId: pedidoId, // Added pedidoId to help backend update status
-         status: 'APROVADO' 
-       });
-       alert('Pagamento Aprovado! Pedido em Preparo.');
-       onClose();
-     } catch (err: unknown) {
-       setError(getErrMessage(err));
-     } finally {
-       setLoading(false);
-     }
-  };
-
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <button className="close-btn" onClick={onClose}>&times;</button>
 
-        {/* Payment Step */}
+        {/* Etapa de Pagamento */}
         {step === 'PAYMENT' && (
           <div className="payment-step">
-             <h3>Pagamento</h3>
+             <h3>Pagamento via Pix</h3>
+             <p style={{ textAlign: 'center', marginBottom: '1rem', color: '#64748b' }}>
+               Escaneie o QR Code ou use o Copia e Cola. <br/>
+               O pedido será liberado automaticamente após o pagamento.
+             </p>
              
              <div className="payment-methods">
                 <div className="pix-area">
-                  <h4>Pix (Copia e Cola)</h4>
                   {loading ? (
                     <p>Gerando Pix...</p>
                   ) : pixData ? (
                     <>
                       <div className="qrcode-mock">
-                        {/* In a real app, render QR Code here */}
-                        <div style={{ background: '#f0f0f0', width: '200px', height: '200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          QR CODE
-                        </div>
+                        {/* QR Code Real do Mercado Pago */}
+                        {pixData.qr_code_base64 && (
+                            <img 
+                                src={`data:image/png;base64,${pixData.qr_code_base64}`} 
+                                alt="QR Code Pix" 
+                                style={{ width: '200px', height: '200px', display: 'block', margin: '0 auto' }}
+                            />
+                        )}
                       </div>
-                      <p style={{ wordBreak: 'break-all', fontSize: '0.8rem', background: '#f8f9fa', padding: '1rem', borderRadius: '4px' }}>
-                        {pixData.pix.copiaCola}
-                      </p>
-                      <button className="copy-btn" onClick={() => navigator.clipboard.writeText(pixData.pix.copiaCola)}>
+                      
+                      <div style={{ marginTop: '1rem' }}>
+                        <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Código Copia e Cola:</p>
+                        <textarea 
+                            readOnly
+                            value={pixData.qr_code}
+                            style={{ 
+                                width: '100%', 
+                                height: '80px', 
+                                fontSize: '0.8rem', 
+                                background: '#f8f9fa', 
+                                padding: '0.5rem', 
+                                borderRadius: '4px',
+                                border: '1px solid #ddd',
+                                resize: 'none'
+                            }}
+                        />
+                      </div>
+
+                      <button 
+                        className="copy-btn" 
+                        onClick={() => {
+                            navigator.clipboard.writeText(pixData.qr_code);
+                            alert('Código copiado!');
+                        }}
+                        style={{ marginTop: '0.5rem' }}
+                      >
                         Copiar Código
                       </button>
+
+                      <div className="loading-spinner" style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ 
+                            width: '24px', 
+                            height: '24px', 
+                            border: '3px solid #f3f3f3', 
+                            borderTop: '3px solid #3498db', 
+                            borderRadius: '50%', 
+                            animation: 'spin 1s linear infinite' 
+                        }}></div>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                        <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#64748b' }}>Aguardando pagamento...</p>
+                        
+                        {window.location.hostname === 'localhost' && (
+                           <button 
+                             onClick={async () => {
+                               if(!pixData) return;
+                               // Simula webhook chamando o backend (hack para dev local)
+                               // Na verdade, o ideal seria ter um endpoint de "forçar status" em dev, 
+                               // mas como não criamos, vamos apenas esperar o usuário pagar de verdade ou implementar o webhook mock se quiser.
+                               // Como removemos o webhook mock, vamos apenas avisar.
+                               alert('Em localhost o Webhook do Mercado Pago não chega.\nPara testar o fluxo completo, use o Ngrok ou faça deploy.');
+                             }}
+                             style={{ marginTop: '1rem', fontSize: '0.7rem', color: '#999', background: 'none', border: '1px dashed #ccc', padding: '2px 5px', cursor: 'pointer' }}
+                           >
+                             (Dev: O Webhook não funciona em Localhost)
+                           </button>
+                        )}
+                      </div>
                     </>
                   ) : (
-                    <p>Erro ao gerar Pix</p>
+                    <p style={{ color: 'red' }}>Erro ao gerar Pix. Tente novamente.</p>
                   )}
                 </div>
-
-                <div className="divider">ou</div>
-
-                <button className="finalize-btn" onClick={handleMockPagamento} disabled={loading}>
-                   {loading ? 'Processando...' : 'Pagar na Entrega'}
-                </button>
              </div>
           </div>
         )}
         
+        {/* Etapa de Revisão */}
         {step === 'REVIEW' && (
           <>
             <h2>Seu Pedido</h2>
@@ -199,7 +266,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
         </>
       )}
 
-        {step === 'NAME' && simulation && (
+      {/* Etapa de Identificação */}
+      {step === 'NAME' && simulation && (
            <>
              <h2>Finalizar Pedido</h2>
              
@@ -254,7 +322,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
              {error && <p className="error-msg">{error}</p>}
 
              <button className="add-btn" onClick={handleCriarPedido} disabled={loading}>
-               {loading ? 'Enviando...' : 'Ir para Pagamento (PIX)'}
+               {loading ? 'Processando...' : 'Gerar Pagamento PIX'}
              </button>
              <button className="checkout-btn" onClick={() => setStep('REVIEW')}>
                Voltar

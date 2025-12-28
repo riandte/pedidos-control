@@ -6,7 +6,7 @@ import { PedidoController } from '../controllers/PedidoController';
 import { AdminPedidoController } from '../controllers/AdminPedidoController';
 import { KDSController } from '../controllers/KDSController';
 import { CarrinhoController } from '../controllers/CarrinhoController';
-import { PagamentoController } from '../controllers/PagamentoController';
+import { PaymentController } from '../controllers/PaymentController';
 import { IngredienteController } from '../controllers/IngredienteController';
 import { GrupoAdicionalController } from '../controllers/GrupoAdicionalController';
 import { ConfiguracaoController } from '../controllers/ConfiguracaoController';
@@ -23,7 +23,8 @@ const pedidoController = new PedidoController();
 const adminPedidoController = new AdminPedidoController();
 const kdsController = new KDSController();
 const carrinhoController = new CarrinhoController();
-const pagamentoController = new PagamentoController();
+// const pagamentoController = new PagamentoController(); // Deprecated
+const paymentController = new PaymentController();
 const ingredienteController = new IngredienteController();
 const grupoAdicionalController = new GrupoAdicionalController();
 const configuracaoController = new ConfiguracaoController();
@@ -74,9 +75,14 @@ router.post('/carrinho/simular', carrinhoController.simular);
 // Pedidos (Cliente)
 router.post('/pedidos', optionalAuthMiddleware, pedidoController.create);
 
-// Pagamentos (Mock)
-router.post('/pagamentos/iniciar', pagamentoController.iniciar);
-router.post('/pagamentos/webhook-mock', pagamentoController.webhookMock);
+// Pagamentos (Mercado Pago)
+router.post('/payment/pix', paymentController.createPix);
+router.post('/webhook/mercadopago', paymentController.webhook);
+router.get('/payment/:pedidoId/status', paymentController.checkStatus);
+
+// Pagamentos (Mock - Deprecated)
+// router.post('/pagamentos/iniciar', pagamentoController.iniciar);
+// router.post('/pagamentos/webhook-mock', pagamentoController.webhookMock);
 
 // ADMIN: Gestão de Pedidos
 router.get('/admin/pedidos', authMiddleware, adminPedidoController.index);
