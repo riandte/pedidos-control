@@ -52,7 +52,7 @@ export class PedidoService {
           nomeCliente: data.nomeCliente,
           telefone: data.telefone,
           tipoEntrega: data.tipoEntrega,
-          status: 'RECEBIDO',
+          status: 'AGUARDANDO_PAGAMENTO',
           statusPagamento: 'PENDENTE',
           total: calculo.total,
         },

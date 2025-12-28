@@ -82,9 +82,29 @@ export class PaymentController {
           });
           
           if (!pedido) return res.status(404).json({ message: 'Pedido não encontrado' });
+
+          if (pedido.statusPagamento === 'APROVADO') {
+             return res.json({ statusPagamento: 'APROVADO' });
+          }
+
+          // Se não estiver aprovado localmente, verifica na API do Mercado Pago
+          const paymentData = await checkPaymentByOrder(pedidoId);
+          
+          if (paymentData && paymentData.status === 'approved') {
+               // Atualiza status localmente
+               await prisma.pedido.update({
+                    where: { id: pedidoId },
+                    data: { 
+                        statusPagamento: 'APROVADO',
+                        status: 'RECEBIDO'
+                    }
+                });
+                return res.json({ statusPagamento: 'APROVADO' });
+          }
           
           res.json({ statusPagamento: pedido.statusPagamento });
       } catch (error) {
+          console.error('Erro no checkStatus:', error);
           res.status(500).json({ message: 'Erro ao verificar status' });
       }
   }
