@@ -317,9 +317,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                </p>
                
                {/* Campo de Telefone */}
-               <div style={{ marginBottom: '1rem' }}>
-                   <label className="form-label">Celular com DDD</label>
-                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+               <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                   <label className="form-label" style={{ textAlign: 'center' }}>Celular com DDD</label>
+                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
                        <input 
                           className="form-input"
                           type="tel"
@@ -332,6 +332,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                               setNomeCliente('');
                           }}
                           disabled={loading}
+                          style={{ textAlign: 'center' }}
                        />
                        {!phoneChecked && (
                            <button 
@@ -346,53 +347,63 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                </div>
 
                {/* Campo Nome (Sempre visível) */}
-               <div style={{ marginBottom: '1rem' }}>
-                   <label className="form-label">Seu Nome</label>
+               <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                   <label className="form-label" style={{ textAlign: 'center' }}>Seu Nome</label>
                    <input 
                       className="form-input"
                       type="text"
-                      placeholder="Nome completo"
+                      placeholder="Como podemos te chamar?"
                       value={nomeCliente}
                       onChange={e => setNomeCliente(e.target.value)}
-                      disabled={!phoneChecked || userFound}
-                      style={{ 
-                          backgroundColor: (!phoneChecked || userFound) ? '#e2e8f0' : 'white',
-                          cursor: (!phoneChecked || userFound) ? 'not-allowed' : 'text'
-                      }}
+                      disabled={loading}
+                      style={{ textAlign: 'center' }}
                    />
                </div>
 
-               {/* Endereço e Botão de Ação (Aparecem após verificar telefone) */}
-               {phoneChecked && (
-                   <div className="fade-in">
-                       {tipoEntrega === 'ENTREGA' && (
-                           <div style={{ marginBottom: '1rem' }}>
-                               <label className="form-label">Endereço de Entrega</label>
-                               <textarea 
-                                  className="form-input"
-                                  placeholder="Rua, Número, Bairro, Complemento..."
-                                  value={endereco}
-                                  onChange={e => setEndereco(e.target.value)}
-                                  rows={3}
-                               />
-                           </div>
-                       )}
-
-                       <button className="add-btn" onClick={handleCriarPedido} disabled={loading} style={{ width: '100%', marginTop: '1rem' }}>
-                          {loading ? 'Processando...' : (userFound ? 'Ir para Pagamento' : 'Cadastrar')}
-                       </button>
-                   </div>
+               {/* Campo Endereço (Aparece se Entrega) */}
+               {tipoEntrega === 'ENTREGA' && (
+                  <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                      <label className="form-label" style={{ textAlign: 'center' }}>Endereço Completo</label>
+                      <textarea 
+                        className="form-input"
+                        placeholder="Rua, Número, Bairro e Complemento"
+                        value={endereco}
+                        onChange={e => setEndereco(e.target.value)}
+                        disabled={loading}
+                        style={{ height: '80px', resize: 'none', textAlign: 'center' }}
+                      />
+                  </div>
                )}
 
-               {error && <p className="error-msg" style={{ marginTop: '1rem' }}>{error}</p>}
+               {error && (
+                  <div className="error-msg">
+                    {error}
+                  </div>
+               )}
 
-               <button 
-                 className="checkout-btn" 
-                 onClick={() => setStep('REVIEW')} 
-                 style={{ background: 'transparent', color: '#666', border: '1px solid #ddd', marginTop: '1rem' }}
-               >
-                  Voltar
-               </button>
+               <div style={{ marginTop: '2rem' }}>
+                  <button 
+                    className="add-btn" 
+                    onClick={handleCriarPedido}
+                    disabled={loading || !nomeCliente || !telefoneCliente || (tipoEntrega === 'ENTREGA' && !endereco)}
+                  >
+                    {loading ? 'Processando...' : 'Confirmar e Pagar'}
+                  </button>
+                  <button 
+                    onClick={() => setStep('REVIEW')}
+                    style={{ 
+                        width: '100%', 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#64748b', 
+                        padding: '1rem', 
+                        cursor: 'pointer',
+                        marginTop: '0.5rem'
+                    }}
+                  >
+                    Voltar
+                  </button>
+               </div>
             </div>
         )}
       </div>
