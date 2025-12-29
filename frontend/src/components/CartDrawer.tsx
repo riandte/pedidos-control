@@ -251,24 +251,96 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
               </div>
             ) : (
               <>
-                <div className="cart-items">
+                <div className="cart-items" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {cart.map((item, index) => (
-                    <div key={index} className="cart-item">
-                      <div className="cart-item-header">
-                        <span className="item-qty">{item.quantidade}x</span>
-                        <span className="item-name">{item.nomeProduto}</span>
-                        <button className="remove-btn" onClick={() => onRemoveItem(index)}>
-                            Remover
+                    <div key={index} className="cart-item" style={{
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '16px',
+                        padding: '1.25rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        transition: 'transform 0.2s ease',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <span style={{ 
+                                background: '#eff6ff', 
+                                color: '#3b82f6', 
+                                fontWeight: '800', 
+                                fontSize: '0.95rem',
+                                padding: '6px 12px', 
+                                borderRadius: '10px',
+                                minWidth: '40px',
+                                textAlign: 'center',
+                                boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.1)'
+                            }}>
+                                {item.quantidade}x
+                            </span>
+                            <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.05rem', lineHeight: '1.4' }}>
+                                {item.nomeProduto}
+                            </span>
+                        </div>
+                        <button 
+                            onClick={() => onRemoveItem(index)}
+                            style={{ 
+                                background: '#fef2f2', 
+                                border: 'none', 
+                                color: '#ef4444', 
+                                cursor: 'pointer',
+                                padding: '8px',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'background 0.2s'
+                            }}
+                            title="Remover item"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18"></path>
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                            </svg>
                         </button>
                       </div>
-                      {item.descricaoAdicionais && (
-                         <p className="item-obs">+ {item.descricaoAdicionais}</p>
+
+                      {(item.descricaoAdicionais || item.observacao) && (
+                        <div style={{ 
+                            background: '#f8fafc', 
+                            borderRadius: '10px', 
+                            padding: '0.85rem', 
+                            marginBottom: '1rem',
+                            fontSize: '0.9rem',
+                            color: '#475569',
+                            border: '1px solid #f1f5f9'
+                        }}>
+                            {item.descricaoAdicionais && (
+                                <div style={{ marginBottom: item.observacao ? '6px' : '0', display: 'flex', gap: '6px' }}>
+                                    <span style={{ fontWeight: '600', color: '#64748b', minWidth: '75px' }}>Adicionais:</span>
+                                    <span>{item.descricaoAdicionais}</span>
+                                </div>
+                            )}
+                            {item.observacao && (
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <span style={{ fontWeight: '600', color: '#64748b', minWidth: '75px' }}>Obs:</span>
+                                    <span>{item.observacao}</span>
+                                </div>
+                            )}
+                        </div>
                       )}
-                      {item.observacao && (
-                        <p className="item-obs">Obs: {item.observacao}</p>
-                      )}
-                      <div className="item-price">
-                        R$ {item.precoTotalEstimado.toFixed(2)}
+
+                      <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'flex-end', 
+                          alignItems: 'center', 
+                          borderTop: '1px solid #f1f5f9',
+                          paddingTop: '0.75rem',
+                          marginTop: '0.5rem'
+                      }}>
+                        <span style={{ fontSize: '0.9rem', color: '#64748b', marginRight: '0.5rem' }}>Total do item:</span>
+                        <span style={{ fontWeight: '800', color: '#0f172a', fontSize: '1.2rem' }}>
+                            R$ {item.precoTotalEstimado.toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   ))}
