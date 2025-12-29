@@ -21,7 +21,6 @@ interface PixData {
 export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveItem, onClearCart, storeOpen = true }) => {
   const [step, setStep] = useState<'REVIEW' | 'AUTH' | 'PAYMENT'>('REVIEW');
   const [phoneChecked, setPhoneChecked] = useState(false);
-  const [userFound, setUserFound] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -96,14 +95,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
         if (res.data.exists) {
             setNomeCliente(res.data.user.nome);
             if (res.data.user.endereco) setEndereco(res.data.user.endereco);
-            setUserFound(true);
         } else {
-            setUserFound(false);
-            setNomeCliente(''); // Limpa caso tenha algo
+            setError('Usuário não encontrado. Digite seu nome para cadastrar.');
         }
         setPhoneChecked(true);
-    } catch (err) {
-        setError(getErrMessage(err));
+    } catch (err: unknown) {
+        setError('Erro ao verificar telefone');
+        console.error(err);
     } finally {
         setLoading(false);
     }
@@ -328,7 +326,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                           onChange={e => {
                               setTelefoneCliente(e.target.value);
                               setPhoneChecked(false); 
-                              setUserFound(false);
                               setNomeCliente('');
                           }}
                           disabled={loading}
