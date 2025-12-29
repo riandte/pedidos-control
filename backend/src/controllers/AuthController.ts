@@ -69,4 +69,68 @@ export class AuthController {
       token,
     });
   }
+
+  async checkPhone(req: Request, res: Response) {
+    const { telefone } = req.body;
+    if (!telefone) return res.status(400).json({ error: 'Telefone é obrigatório' });
+
+    const user = await prisma.user.findFirst({ where: { telefone } });
+    if (user) {
+      return res.json({ 
+        exists: true, 
+        user: { 
+          nome: user.nome, 
+          endereco: user.endereco,
+          id: user.id 
+        } 
+      });
+    }
+    return res.json({ exists: false });
+  }
+
+  async phoneAuth(req: Request, res: Response) {
+    const { telefone, nome, endereco } = req.body;
+
+    if (!telefone) return res.status(400).json({ error: 'Telefone é obrigatório' });
+
+    let user = await prisma.user.findFirst({ where: { telefone } });
+
+    if (!user) {
+      // Create new user
+      // Password dummy since it's phone auth
+      const hashSenha = await bcrypt.hash('phone-auth-secret-' + Date.now(), 8);
+      
+      user = await prisma.user.create({
+        data: {
+          telefone,
+          nome: nome || 'Cliente',
+          endereco: endereco || '',
+          senha: hashSenha,
+          tipo: 'CLIENTE'
+        }
+      });
+    } else {
+      // Update existing user info if provided
+      if (nome || endereco) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            nome: nome || user.nome,
+            endereco: endereco || user.endereco
+          }
+        });
+      }
+    }
+
+    const token = jwt.sign({ id: user.id, role: user.tipo }, process.env.JWT_SECRET || 'default', {
+      expiresIn: '30d',
+    });
+
+    const { senha: _, ...userReturn } = user;
+
+    return res.json({
+      user: userReturn,
+      token,
+    });
+  }
 }

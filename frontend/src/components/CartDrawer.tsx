@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ItemCarrinho, ResultadoCalculo } from '../types';
+import { ItemCarrinho } from '../types';
 import { api } from '../services/api';
 
 interface CartDrawerProps {
@@ -19,12 +19,15 @@ interface PixData {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveItem, onClearCart, storeOpen = true }) => {
-  const [step, setStep] = useState<'REVIEW' | 'NAME' | 'PAYMENT'>('REVIEW');
-  const [simulation, setSimulation] = useState<ResultadoCalculo | null>(null);
+  const [step, setStep] = useState<'REVIEW' | 'AUTH' | 'PAYMENT'>('REVIEW');
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [userFound, setUserFound] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [nomeCliente, setNomeCliente] = useState('');
   const [telefoneCliente, setTelefoneCliente] = useState('');
+  const [endereco, setEndereco] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState<'RETIRADA' | 'ENTREGA' | 'MESA'>('RETIRADA');
   const [pedidoId, setPedidoId] = useState('');
   const [pixData, setPixData] = useState<PixData | null>(null);
@@ -81,52 +84,83 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     return 'Erro inesperado';
   };
 
-  // 1. Simular Preço
-  const handleSimular = async () => {
+  const handleCheckPhone = async () => {
+    if (!telefoneCliente || telefoneCliente.length < 10) {
+        setError('Digite um telefone válido (com DDD).');
+        return;
+    }
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/carrinho/simular', { itens: cart });
-      setSimulation(res.data);
-      setStep('NAME');
-    } catch (err: unknown) {
-      console.error(err);
-      setError(getErrMessage(err) || 'Erro ao calcular carrinho');
+        const res = await api.post('/auth/check-phone', { telefone: telefoneCliente });
+        if (res.data.exists) {
+            setNomeCliente(res.data.user.nome);
+            if (res.data.user.endereco) setEndereco(res.data.user.endereco);
+            setUserFound(true);
+        } else {
+            setUserFound(false);
+            setNomeCliente(''); // Limpa caso tenha algo
+        }
+        setPhoneChecked(true);
+    } catch (err) {
+        setError(getErrMessage(err));
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
-  // 2. Criar Pedido e Gerar Pix
   const handleCriarPedido = async () => {
     if (!nomeCliente) {
       setError('Nome é obrigatório');
+      return;
+    }
+    if (tipoEntrega === 'ENTREGA' && !endereco) {
+      setError('Endereço é obrigatório para entrega');
       return;
     }
     if (!telefoneCliente) {
       setError('Telefone é obrigatório');
       return;
     }
+
     setLoading(true);
+    setError('');
+
     try {
-      // 1. Criar Pedido
+      // 1. Autenticação Silenciosa (Cria ou Atualiza usuário e pega Token)
+      const authRes = await api.post('/auth/phone-auth', { 
+        telefone: telefoneCliente, 
+        nome: nomeCliente, 
+        endereco: tipoEntrega === 'ENTREGA' ? endereco : undefined 
+      });
+      
+      const { token } = authRes.data;
+
+      // 2. Cria o Pedido (usando o token do cliente)
       const res = await api.post('/pedidos', { 
         nomeCliente, 
         telefone: telefoneCliente,
         tipoEntrega,
+        endereco: tipoEntrega === 'ENTREGA' ? endereco : undefined,
         itens: cart 
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+
       const novoPedidoId = res.data.id;
       setPedidoId(novoPedidoId);
-      
-      // 2. Gerar Pix Real (Mercado Pago)
+
+      // 3. Gera Pix
       const payRes = await api.post<PixData>('/payment/pix', { 
         pedidoId: novoPedidoId 
       });
       
       setPixData(payRes.data);
       setStep('PAYMENT');
-      onClearCart(); // Limpa carrinho local pois pedido foi criado
+      onClearCart();
+      
     } catch (err: unknown) {
       setError(getErrMessage(err) || 'Erro ao criar pedido');
     } finally {
@@ -134,116 +168,72 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
     }
   };
 
+  const total = cart.reduce((acc, item) => acc + item.precoTotalEstimado, 0);
+
+  if (!storeOpen) {
+     return (
+        <div className="cart-drawer-overlay" onClick={onClose}>
+           <div className="cart-drawer" onClick={e => e.stopPropagation()}>
+              <button className="close-btn" onClick={onClose}>&times;</button>
+              <div style={{ padding: '2rem', textAlign: 'center' }}>
+                 <h2>Loja Fechada 🌙</h2>
+                 <p>Estamos fechados no momento. Confira nosso horário de funcionamento.</p>
+              </div>
+           </div>
+        </div>
+     );
+  }
+
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="cart-drawer-overlay" onClick={onClose}>
+      <div className="cart-drawer" onClick={e => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>&times;</button>
-
-        {/* Etapa de Pagamento */}
-        {step === 'PAYMENT' && (
+        
+        {/* Etapa de Pagamento (QR Code) */}
+        {step === 'PAYMENT' && pixData && (
           <div className="payment-step">
-             <h3>Pagamento via Pix</h3>
-             <p style={{ textAlign: 'center', marginBottom: '1rem', color: '#64748b' }}>
-               Escaneie o QR Code ou use o Copia e Cola. <br/>
-               O pedido será liberado automaticamente após o pagamento.
-             </p>
-             
-             <div className="payment-methods">
-                <div className="pix-area">
-                  {loading ? (
-                    <p>Gerando Pix...</p>
-                  ) : pixData ? (
+             <h2>Pagamento via Pix</h2>
+             <div className="qr-container">
+                <img src={`data:image/jpeg;base64,${pixData.qr_code_base64}`} alt="QR Code Pix" style={{ width: '100%', maxWidth: '250px' }} />
+                
+                <div style={{ margin: '1rem 0' }}>
+                   <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '0.5rem' }}>Código Pix Copia e Cola:</p>
+                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input type="text" value={pixData.qr_code} readOnly className="form-input" style={{ fontSize: '0.8rem' }} />
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(pixData.qr_code)}
+                        style={{ padding: '0.5rem', background: '#e2e8f0', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
+                      >
+                        Copiar
+                      </button>
+                   </div>
+                </div>
+
+                <div className="status-payment">
+                  {verificando ? (
+                      <p style={{ color: '#f59e0b' }}>Verificando pagamento...</p>
+                  ) : (
                     <>
-                      <div className="qrcode-mock">
-                        {/* QR Code Real do Mercado Pago */}
-                        {pixData.qr_code_base64 && (
-                            <img 
-                                src={`data:image/png;base64,${pixData.qr_code_base64}`} 
-                                alt="QR Code Pix" 
-                                style={{ width: '200px', height: '200px', display: 'block', margin: '0 auto' }}
-                            />
-                        )}
-                      </div>
-                      
-                      <div style={{ marginTop: '1rem' }}>
-                        <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Código Copia e Cola:</p>
-                        <textarea 
-                            readOnly
-                            value={pixData.qr_code}
-                            style={{ 
-                                width: '100%', 
-                                height: '80px', 
-                                fontSize: '0.8rem', 
-                                background: '#f8f9fa', 
-                                padding: '0.5rem', 
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                resize: 'none'
-                            }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '0.5rem' }}>
-                        <button 
-                          className="copy-btn" 
-                          onClick={() => {
-                              navigator.clipboard.writeText(pixData.qr_code);
-                              alert('Código copiado!');
-                          }}
-                          style={{ flex: 1 }}
-                        >
-                          Copiar Código
+                      <p>Aguardando confirmação...</p>
+                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+                        <button className="add-btn" onClick={handleVerificarPagamento}>
+                            Já paguei
                         </button>
-                        <button
-                            className="check-btn"
-                            onClick={handleVerificarPagamento}
-                            disabled={verificando}
-                            style={{ 
-                                flex: 1, 
-                                backgroundColor: '#10b981', 
-                                color: 'white', 
-                                border: 'none', 
-                                borderRadius: '8px', 
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                                opacity: verificando ? 0.7 : 1
-                            }}
-                        >
-                            {verificando ? 'Verificando...' : 'Já Paguei'}
-                        </button>
-                      </div>
-
-                      <div className="loading-spinner" style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ 
-                            width: '24px', 
-                            height: '24px', 
-                            border: '3px solid #f3f3f3', 
-                            borderTop: '3px solid #3498db', 
-                            borderRadius: '50%', 
-                            animation: 'spin 1s linear infinite' 
-                        }}></div>
-                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                        <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#64748b' }}>Aguardando pagamento...</p>
                         
+                        {/* Botão de Hack para Localhost (Se quiser manter para testes) */}
                         {window.location.hostname === 'localhost' && (
                            <button 
                              onClick={async () => {
                                if(!pixData) return;
-                               // Simula webhook chamando o backend (hack para dev local)
-                               // Na verdade, o ideal seria ter um endpoint de "forçar status" em dev, 
-                               // mas como não criamos, vamos apenas esperar o usuário pagar de verdade ou implementar o webhook mock se quiser.
-                               // Como removemos o webhook mock, vamos apenas avisar.
                                alert('Em localhost o Webhook do Mercado Pago não chega.\nPara testar o fluxo completo, use o Ngrok ou faça deploy.');
                              }}
-                             style={{ marginTop: '1rem', fontSize: '0.7rem', color: '#999', background: 'none', border: '1px dashed #ccc', padding: '2px 5px', cursor: 'pointer' }}
+                             style={{ fontSize: '0.7rem', color: '#999', background: 'none', border: '1px dashed #ccc', padding: '5px 10px', cursor: 'pointer' }}
                            >
-                             (Dev: O Webhook não funciona em Localhost)
+                             (Dev: Info Webhook)
                            </button>
                         )}
                       </div>
                     </>
-                  ) : (
-                    <p style={{ color: 'red' }}>Erro ao gerar Pix. Tente novamente.</p>
                   )}
                 </div>
              </div>
@@ -256,117 +246,154 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
             <h2>Seu Pedido</h2>
             {cart.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2rem 0', color: '#94a3b8' }}>
-                <p>Sua sacola está vazia 🛍️</p>
+                <p>Seu carrinho está vazio 😢</p>
+                <button className="add-btn" onClick={onClose} style={{ marginTop: '1rem' }}>
+                  Ver Cardápio
+                </button>
               </div>
             ) : (
-              <div className="item-list">
-                {cart.map((item, idx) => (
-                  <div key={idx} className="item-card">
-                    <div className="item-info">
-                      <h3>{item.quantidade}x {item.nomeProduto}</h3>
-                      <p className="item-desc">{item.descricaoAdicionais}</p>
-                      {item.observacao && <p className="item-desc" style={{ fontStyle: 'italic' }}>Obs: {item.observacao}</p>}
+              <>
+                <div className="cart-items">
+                  {cart.map((item, index) => (
+                    <div key={index} className="cart-item">
+                      <div className="cart-item-header">
+                        <span className="item-qty">{item.quantidade}x</span>
+                        <span className="item-name">{item.nomeProduto}</span>
+                        <button className="remove-btn" onClick={() => onRemoveItem(index)}>
+                            Remover
+                        </button>
+                      </div>
+                      {item.descricaoAdicionais && (
+                         <p className="item-obs">+ {item.descricaoAdicionais}</p>
+                      )}
+                      {item.observacao && (
+                        <p className="item-obs">Obs: {item.observacao}</p>
+                      )}
+                      <div className="item-price">
+                        R$ {item.precoTotalEstimado.toFixed(2)}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                       <span className="item-price">R$ {item.precoTotalEstimado.toFixed(2)}</span>
-                       <button 
-                        onClick={() => onRemoveItem(idx)} 
-                        style={{ 
-                          color: '#ef4444', 
-                          border: 'none', 
-                          background: 'none', 
-                          cursor: 'pointer', 
-                          fontSize: '0.8rem',
-                          fontWeight: 600
-                        }}>
-                        Remover
-                      </button>
-                    </div>
+                  ))}
+                </div>
+
+                <div className="cart-footer">
+                  <div className="total-row">
+                    <span>Total Estimado:</span>
+                    <span className="total-value">R$ {total.toFixed(2)}</span>
                   </div>
-                ))}
-              </div>
+                  
+                  <div className="delivery-toggle" style={{ margin: '1rem 0', display: 'flex', gap: '0.5rem' }}>
+                     <button 
+                        className={`toggle-btn ${tipoEntrega === 'RETIRADA' ? 'active' : ''}`}
+                        onClick={() => setTipoEntrega('RETIRADA')}
+                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #ddd', background: tipoEntrega === 'RETIRADA' ? '#3b82f6' : 'white', color: tipoEntrega === 'RETIRADA' ? 'white' : 'black' }}
+                     >
+                        Retirada
+                     </button>
+                     <button 
+                        className={`toggle-btn ${tipoEntrega === 'ENTREGA' ? 'active' : ''}`}
+                        onClick={() => setTipoEntrega('ENTREGA')}
+                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #ddd', background: tipoEntrega === 'ENTREGA' ? '#3b82f6' : 'white', color: tipoEntrega === 'ENTREGA' ? 'white' : 'black' }}
+                     >
+                        Entrega
+                     </button>
+                  </div>
+
+                  <button className="checkout-btn" onClick={() => setStep('AUTH')}>
+                    Finalizar Pedido
+                  </button>
+                </div>
+              </>
             )}
-            
-            {error && <p className="error-msg">{error}</p>}
-            
-            {cart.length > 0 && (
-            <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-              {!storeOpen ? (
-                 <div className="store-closed-msg">
-                   A loja está fechada no momento 🌙
-                 </div>
-              ) : (
-                <button className="add-btn" onClick={handleSimular} disabled={loading}>
-                  {loading ? 'Calculando...' : 'Confirmar Pedido'}
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      )}
+          </>
+        )}
 
-      {/* Etapa de Identificação */}
-      {step === 'NAME' && simulation && (
-           <>
-             <h2>Finalizar Pedido</h2>
-             
-             <div style={{ 
-               background: '#f8fafc', 
-               padding: '1rem', 
-               borderRadius: '12px',
-               marginBottom: '1.5rem',
-               border: '1px solid #e2e8f0'
-             }}>
-               <div className="summary-row">
-                 <span>Subtotal</span>
-                 <span>R$ {Number(simulation.total).toFixed(2)}</span>
+        {/* Etapa de Identificação (Nova Lógica Simplificada) */}
+        {step === 'AUTH' && (
+            <div className="auth-step">
+               <h2>Identificação</h2>
+               <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+                  Informe seus dados para continuar.
+               </p>
+               
+               {/* Campo de Telefone */}
+               <div style={{ marginBottom: '1rem' }}>
+                   <label className="form-label">Celular com DDD</label>
+                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                       <input 
+                          className="form-input"
+                          type="tel"
+                          placeholder="(11) 99999-9999"
+                          value={telefoneCliente}
+                          onChange={e => {
+                              setTelefoneCliente(e.target.value);
+                              setPhoneChecked(false); 
+                              setUserFound(false);
+                              setNomeCliente('');
+                          }}
+                          disabled={loading}
+                       />
+                       {!phoneChecked && (
+                           <button 
+                             onClick={handleCheckPhone} 
+                             disabled={loading || telefoneCliente.length < 10}
+                             style={{ padding: '0 1rem', background: '#3b82f6', color: 'white', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+                           >
+                             OK
+                           </button>
+                       )}
+                   </div>
                </div>
-               <div className="summary-total">
-                 <span>Total</span>
-                 <span>R$ {Number(simulation.total).toFixed(2)}</span>
+
+               {/* Campo Nome (Sempre visível) */}
+               <div style={{ marginBottom: '1rem' }}>
+                   <label className="form-label">Seu Nome</label>
+                   <input 
+                      className="form-input"
+                      type="text"
+                      placeholder="Nome completo"
+                      value={nomeCliente}
+                      onChange={e => setNomeCliente(e.target.value)}
+                      disabled={!phoneChecked || userFound}
+                      style={{ 
+                          backgroundColor: (!phoneChecked || userFound) ? '#e2e8f0' : 'white',
+                          cursor: (!phoneChecked || userFound) ? 'not-allowed' : 'text'
+                      }}
+                   />
                </div>
-             </div>
-             
-             <div>
-               <label className="form-label">Seu Nome</label>
-               <input 
-                 className="form-input"
-                 type="text" 
-                 value={nomeCliente} 
-                 onChange={e => setNomeCliente(e.target.value)}
-                 placeholder="Como gostaria de ser chamado?"
-               />
 
-               <label className="form-label">Seu Telefone</label>
-               <input 
-                 className="form-input"
-                 type="text" 
-                 value={telefoneCliente} 
-                 onChange={e => setTelefoneCliente(e.target.value)}
-                 placeholder="(00) 90000-0000"
-               />
+               {/* Endereço e Botão de Ação (Aparecem após verificar telefone) */}
+               {phoneChecked && (
+                   <div className="fade-in">
+                       {tipoEntrega === 'ENTREGA' && (
+                           <div style={{ marginBottom: '1rem' }}>
+                               <label className="form-label">Endereço de Entrega</label>
+                               <textarea 
+                                  className="form-input"
+                                  placeholder="Rua, Número, Bairro, Complemento..."
+                                  value={endereco}
+                                  onChange={e => setEndereco(e.target.value)}
+                                  rows={3}
+                               />
+                           </div>
+                       )}
 
-               <label className="form-label">Tipo de Entrega</label>
-               <select
-                 className="form-input"
-                 value={tipoEntrega}
-                 onChange={e => setTipoEntrega(e.target.value as 'RETIRADA' | 'ENTREGA' | 'MESA')}
+                       <button className="add-btn" onClick={handleCriarPedido} disabled={loading} style={{ width: '100%', marginTop: '1rem' }}>
+                          {loading ? 'Processando...' : (userFound ? 'Ir para Pagamento' : 'Cadastrar')}
+                       </button>
+                   </div>
+               )}
+
+               {error && <p className="error-msg" style={{ marginTop: '1rem' }}>{error}</p>}
+
+               <button 
+                 className="checkout-btn" 
+                 onClick={() => setStep('REVIEW')} 
+                 style={{ background: 'transparent', color: '#666', border: '1px solid #ddd', marginTop: '1rem' }}
                >
-                 <option value="RETIRADA">Retirada no Balcão</option>
-                 <option value="ENTREGA">Entrega (Delivery)</option>
-                 <option value="MESA">Comer na Mesa</option>
-               </select>
-             </div>
-
-             {error && <p className="error-msg">{error}</p>}
-
-             <button className="add-btn" onClick={handleCriarPedido} disabled={loading}>
-               {loading ? 'Processando...' : 'Gerar Pagamento PIX'}
-             </button>
-             <button className="checkout-btn" onClick={() => setStep('REVIEW')}>
-               Voltar
-             </button>
-           </>
+                  Voltar
+               </button>
+            </div>
         )}
       </div>
     </div>

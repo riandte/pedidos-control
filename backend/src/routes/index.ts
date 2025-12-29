@@ -34,6 +34,8 @@ const migrateController = new MigrateController();
 // Auth
 router.post('/auth/register', authController.register);
 router.post('/auth/login', authController.login);
+router.post('/auth/check-phone', authController.checkPhone);
+router.post('/auth/phone-auth', authController.phoneAuth);
 
 // Setup (Executar Seed em Produção)
 router.get('/setup', setupController.run);
