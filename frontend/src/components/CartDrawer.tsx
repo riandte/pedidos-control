@@ -280,18 +280,58 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                     <span className="total-value">R$ {total.toFixed(2)}</span>
                   </div>
                   
-                  <div className="delivery-toggle" style={{ margin: '1rem 0', display: 'flex', gap: '0.5rem' }}>
+                  <div className="delivery-toggle" style={{ margin: '1.5rem 0', display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
                      <button 
                         className={`toggle-btn ${tipoEntrega === 'RETIRADA' ? 'active' : ''}`}
                         onClick={() => setTipoEntrega('RETIRADA')}
-                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #ddd', background: tipoEntrega === 'RETIRADA' ? '#3b82f6' : 'white', color: tipoEntrega === 'RETIRADA' ? 'white' : 'black' }}
+                        style={{ 
+                          flex: 1, 
+                          padding: '0.75rem', 
+                          borderRadius: '8px', 
+                          border: 'none', 
+                          background: tipoEntrega === 'RETIRADA' ? '#fff' : 'transparent', 
+                          color: tipoEntrega === 'RETIRADA' ? '#3b82f6' : '#64748b',
+                          fontWeight: '600',
+                          boxShadow: tipoEntrega === 'RETIRADA' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer'
+                        }}
                      >
                         Retirada
                      </button>
                      <button 
+                        className={`toggle-btn ${tipoEntrega === 'MESA' ? 'active' : ''}`}
+                        onClick={() => setTipoEntrega('MESA')}
+                        style={{ 
+                          flex: 1, 
+                          padding: '0.75rem', 
+                          borderRadius: '8px', 
+                          border: 'none', 
+                          background: tipoEntrega === 'MESA' ? '#fff' : 'transparent', 
+                          color: tipoEntrega === 'MESA' ? '#3b82f6' : '#64748b',
+                          fontWeight: '600',
+                          boxShadow: tipoEntrega === 'MESA' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer'
+                        }}
+                     >
+                        Balcão
+                     </button>
+                     <button 
                         className={`toggle-btn ${tipoEntrega === 'ENTREGA' ? 'active' : ''}`}
                         onClick={() => setTipoEntrega('ENTREGA')}
-                        style={{ flex: 1, padding: '0.5rem', borderRadius: '6px', border: '1px solid #ddd', background: tipoEntrega === 'ENTREGA' ? '#3b82f6' : 'white', color: tipoEntrega === 'ENTREGA' ? 'white' : 'black' }}
+                        style={{ 
+                          flex: 1, 
+                          padding: '0.75rem', 
+                          borderRadius: '8px', 
+                          border: 'none', 
+                          background: tipoEntrega === 'ENTREGA' ? '#fff' : 'transparent', 
+                          color: tipoEntrega === 'ENTREGA' ? '#3b82f6' : '#64748b',
+                          fontWeight: '600',
+                          boxShadow: tipoEntrega === 'ENTREGA' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer'
+                        }}
                      >
                         Entrega
                      </button>
