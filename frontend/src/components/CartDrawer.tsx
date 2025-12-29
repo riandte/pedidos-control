@@ -6,6 +6,7 @@ interface CartDrawerProps {
   cart: ItemCarrinho[];
   onClose: () => void;
   onRemoveItem: (index: number) => void;
+  onUpdateQuantity: (index: number, newQuantity: number) => void;
   onClearCart: () => void;
   storeOpen?: boolean;
 }
@@ -18,7 +19,7 @@ interface PixData {
   ticket_url: string;
 }
 
-export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveItem, onClearCart, storeOpen = true }) => {
+export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveItem, onUpdateQuantity, onClearCart, storeOpen = true }) => {
   const [step, setStep] = useState<'REVIEW' | 'AUTH' | 'PAYMENT'>('REVIEW');
   const [phoneChecked, setPhoneChecked] = useState(false);
   
@@ -263,19 +264,66 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ cart, onClose, onRemoveI
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <span style={{ 
-                                background: '#eff6ff', 
-                                color: '#3b82f6', 
-                                fontWeight: '800', 
-                                fontSize: '0.95rem',
-                                padding: '6px 12px', 
-                                borderRadius: '10px',
-                                minWidth: '40px',
-                                textAlign: 'center',
+                            <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '6px',
+                                background: '#eff6ff',
+                                padding: '4px',
+                                borderRadius: '8px',
                                 boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.1)'
                             }}>
-                                {item.quantidade}x
-                            </span>
+                                <button 
+                                    onClick={() => onUpdateQuantity(index, item.quantidade - 1)}
+                                    disabled={item.quantidade <= 1}
+                                    style={{
+                                        background: item.quantidade <= 1 ? '#cbd5e1' : '#3b82f6',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        width: '24px',
+                                        height: '24px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: item.quantidade <= 1 ? 'not-allowed' : 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '1.1rem',
+                                        paddingBottom: '2px' // visual adjustment
+                                    }}
+                                >
+                                    -
+                                </button>
+                                <span style={{ 
+                                    fontWeight: '800', 
+                                    color: '#3b82f6', 
+                                    fontSize: '0.95rem',
+                                    minWidth: '20px',
+                                    textAlign: 'center'
+                                }}>
+                                    {item.quantidade}
+                                </span>
+                                <button 
+                                    onClick={() => onUpdateQuantity(index, item.quantidade + 1)}
+                                    style={{
+                                        background: '#3b82f6',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        width: '24px',
+                                        height: '24px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        fontSize: '1.1rem',
+                                        paddingBottom: '2px' // visual adjustment
+                                    }}
+                                >
+                                    +
+                                </button>
+                            </div>
                             <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.05rem', lineHeight: '1.4' }}>
                                 {item.nomeProduto}
                             </span>

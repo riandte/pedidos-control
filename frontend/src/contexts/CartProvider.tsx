@@ -28,6 +28,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart(prev => prev.filter((_, i) => i !== index));
   };
 
+  const updateQuantity = (index: number, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    setCart(prev => prev.map((item, i) => {
+      if (i === index) {
+        const unitPrice = item.precoTotalEstimado / item.quantidade;
+        return {
+          ...item,
+          quantidade: newQuantity,
+          precoTotalEstimado: unitPrice * newQuantity
+        };
+      }
+      return item;
+    }));
+  };
+
   const clearCart = () => {
     setCart([]);
   };
@@ -40,7 +56,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartTotalValue = cart.reduce((acc, item) => acc + (Number(item.precoTotalEstimado) || 0), 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, cartTotalItems, cartTotalValue }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotalItems, cartTotalValue }}>
       {children}
     </CartContext.Provider>
   );

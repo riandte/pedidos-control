@@ -11,7 +11,7 @@ import '../../App.css';
 
 export function ClientMenu() {
   const navigate = useNavigate();
-  const { cart, cartTotalItems, removeFromCart, clearCart } = useCart();
+  const { cart, cartTotalItems, removeFromCart, updateQuantity, clearCart } = useCart();
   
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -258,6 +258,7 @@ export function ClientMenu() {
           cart={cart} 
           onClose={() => setIsCartOpen(false)} 
           onRemoveItem={removeFromCart}
+          onUpdateQuantity={updateQuantity}
           onClearCart={clearCart}
           storeOpen={config?.aberto ?? true}
         />
